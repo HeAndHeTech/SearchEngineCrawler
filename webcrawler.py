@@ -11,7 +11,6 @@ RESET = colorama.Fore.RESET
 YELLOW = colorama.Fore.YELLOW
 
 
-
 def connect_to_db():
     myclient = pymongo.MongoClient("mongodb://localhost:27017/")
     mydb = myclient["coin-search"]
@@ -27,6 +26,28 @@ def is_valid(url):
     parsed = urlparse(url)
     return bool(parsed.netloc) and bool(parsed.scheme)
 
+def get_child_text(soup,url):
+    td = ""
+    p = ""
+    if "geeksforgeeks" in url:
+        # Find all the td elements on the page
+        td = soup.find_all('article')
+
+    if "w3schools" in url:
+        # Find all the td elements on the page
+        td = soup.find_all(('div', {'id': 'main'}))
+
+    if "tutorialspoint" in url:
+        # Find all the td elements on the page
+        td = soup.find_all(('div', {'class': 'mui-col-md-6 tutorial-content'}))
+
+    for i in td:
+        for para in i.find_all('p'):
+            p = p + para.text + ","
+    #if "\xa0 " in p:
+        #p = p.replace(u'\xa0', u'')
+    p = unicodedata.normalize("NFKD", p)
+    return p
 
 def get_all_website_links(url):
     """
@@ -73,21 +94,28 @@ def get_all_website_links(url):
     headings = []
     links = soup.find_all("title")
     for link in links:
-        print(link.text.strip())
+        #print(link.text.strip())
         title = title + link.text.strip()
-    links = soup.find_all("p")
-    for link in links:
-        print(link.text.strip())
-        p = p + link.text.strip() + ","
+    p = get_child_text(soup,url)
+
+    #links = soup.find_all("p")
+    #for link in links:
+        #print(link.text.strip())
+        #p = p + link.text.strip() + ","
     heading = soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"])
     for link in heading:
         print(link.text.strip())
         headings.append(link.text.strip())
 
+    headings = list(set(headings))
+    if "" in headings:
+        headings.remove('')
+
     mydict['url'] = url
     mydict['title'] = title
     mydict['content'] = p
     mydict['headings'] = headings
+    print(mydict)
     print(db_object)
     x = db_object.insert_one(mydict)
 
@@ -125,7 +153,7 @@ if __name__ == "__main__":
         internal_urls = set()
         external_urls = set()
         url = line.strip('\n')
-        crawl(url, 1000)
+        crawl(url, 10)
         print("[+] Total Internal links:", len(internal_urls))
         print("[+] Total External links:", len(external_urls))
         print("[+] Total URLs:", len(external_urls) + len(internal_urls))
